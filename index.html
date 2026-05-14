@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>دوائي</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c8a96e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="دوائي">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Tajawal:wght@300;400;500;700&family=Josefin+Sans:wght@100;200;300&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0d; --surface:#161616; --surface2:#1e1e1e;
+  --border:#272727; --gold:#c8a96e; --gold-dim:#8a6d3b;
+  --text:#f0f0f0; --muted:#555; --green:#4ade80; --red:#f87171; --blue:#4a9eff;
+}
+*{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body{ background:var(--bg); min-height:100vh; font-family:'Tajawal',sans-serif; color:var(--text); display:flex; justify-content:center; overflow:hidden; }
+
+.app{ width:100%; max-width:390px; height:100vh; position:relative; overflow:hidden; }
+
+/* ── SCREENS ── */
+.screen{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .32s cubic-bezier(.4,0,.2,1);
+  background:var(--bg);
+  overflow:hidden;
+}
+.screen.active{ transform:translateX(0); }
+.screen.behind{ transform:translateX(-30%); }
+
+.scroll{ overflow-y:auto; flex:1; scrollbar-width:none; padding-bottom:100px; }
+.scroll::-webkit-scrollbar{ display:none; }
+
+/* ── STATUS ── */
+.status{ padding:14px 22px 0; display:flex; justify-content:space-between; font-size:11px; color:var(--muted); font-family:'Josefin Sans',sans-serif; font-weight:200; letter-spacing:1px; flex-shrink:0; }
+
+/* ── HEADER ── */
+.header{ padding:16px 22px 0; display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.back-btn{ width:38px; height:38px; border-radius:12px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; flex-shrink:0; transition:.15s; }
+.back-btn:active{ transform:scale(.92); }
+.header-title{ font-size:20px; font-weight:700; }
+.header-sub{ font-size:12px; color:var(--muted); font-weight:300; margin-top:2px; }
+
+/* ── SECTION ── */
+.section{ padding:22px 22px 0; }
+.section-label{ font-size:10px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:3px; text-transform:uppercase; font-weight:200; margin-bottom:12px; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{
+  position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:390px;
+  background:#0d0d0dee; backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  padding:10px 0 22px;
+  display:flex; justify-content:space-around; z-index:100;
+}
+.nav-item{ display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; padding:4px 14px; border-radius:12px; }
+.nav-icon{ font-size:20px; filter:grayscale(1); opacity:.35; transition:.2s; }
+.nav-label{ font-size:9px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; transition:.2s; }
+.nav-item.active .nav-icon{ filter:none; opacity:1; }
+.nav-item.active .nav-label{ color:var(--gold); }
+
+/* ── SIGNATURE ── */
+.signature{ position:fixed; bottom:72px; left:14px; direction:ltr; display:flex; align-items:center; background:#1e1208; border:1px solid #c8a96e44; border-radius:8px; padding:4px 10px 4px 7px; z-index:99; }
+.sig-bar{ width:3px; height:20px; background:linear-gradient(180deg,#c8a96e,#8a6d3b); border-radius:2px; margin-right:7px; }
+.sig-by{ font-family:'Josefin Sans',sans-serif; font-weight:200; font-size:6px; color:#8a6d3b; letter-spacing:3px; text-transform:uppercase; }
+.sig-nm{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:14px; color:#c8a96e; letter-spacing:2px; line-height:1; }
+
+/* ── TOAST ── */
+.toast{
+  position:fixed; bottom:110px; left:50%; transform:translateX(-50%) translateY(16px);
+  background:#161616; border:1px solid #4ade8055; border-radius:14px;
+  padding:13px 22px; font-size:14px; font-weight:500;
+  opacity:0; transition:all .3s; pointer-events:none; white-space:nowrap; z-index:200;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════════════
+   SPLASH
+══════════════════════════════════════════════ */
+#splash{ transform:translateX(0); z-index:50; align-items:center; justify-content:center; }
+canvas{ display:block; max-width:420px; width:100%; }
+.splash-logo{ margin-top:24px; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.splash-title{ font-family:'Cormorant Garamond',serif; font-size:46px; font-weight:300; color:var(--text); letter-spacing:4px; }
+.splash-title .gold{ color:var(--gold); }
+.splash-sub{ font-family:'Josefin Sans',sans-serif; font-weight:200; font-size:10px; color:#444; letter-spacing:5px; text-transform:uppercase; }
+.splash-dots{ margin-top:22px; display:flex; gap:7px; }
+.splash-dot{ width:6px; height:6px; background:var(--gold); border-radius:50%; animation:dotPulse .9s ease-in-out infinite; }
+.splash-dot:nth-child(2){ animation-delay:.2s; }
+.splash-dot:nth-child(3){ animation-delay:.4s; }
+@keyframes dotPulse{ 0%,100%{opacity:.2;transform:scale(.7)} 50%{opacity:1;transform:scale(1.3)} }
+
+/* ══════════════════════════════════════════════
+   HOME
+══════════════════════════════════════════════ */
+.app-name-home{ font-family:'Cormorant Garamond',serif; font-size:30px; font-weight:300; color:var(--text); }
+.app-name-home span{ color:var(--gold); }
+.greeting{ font-size:13px; color:var(--muted); font-weight:300; }
+.notif-btn{ width:40px; height:40px; border-radius:12px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; position:relative; }
+.notif-dot{ width:7px; height:7px; background:var(--gold); border-radius:50%; position:absolute; top:8px; right:8px; border:1.5px solid var(--bg); }
+
+/* profiles */
+.profiles{ margin:16px 22px 0; display:flex; gap:8px; }
+.profile-tab{ flex:1; padding:10px 6px; border-radius:12px; background:var(--surface); border:1px solid var(--border); text-align:center; cursor:pointer; transition:.2s; }
+.profile-tab.active{ border-color:var(--gold-dim); background:color-mix(in srgb,var(--gold) 8%,var(--surface)); }
+.profile-tab .p-emoji{ font-size:18px; }
+.profile-tab .p-name{ font-size:10px; color:var(--muted); margin-top:4px; font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.profile-tab.active .p-name{ color:var(--gold); }
+
+/* progress card */
+.progress-card{ margin:16px 22px 0; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:18px; display:flex; align-items:center; gap:16px; position:relative; overflow:hidden; }
+.progress-card::before{ content:''; position:absolute; top:0; right:0; width:120px; height:120px; background:radial-gradient(circle,#c8a96e10,transparent 70%); border-radius:50%; }
+.ring-wrap{ position:relative; flex-shrink:0; }
+.ring-wrap svg{ transform:rotate(-90deg); }
+.ring-bg{ fill:none; stroke:#272727; stroke-width:5; }
+.ring-fill{ fill:none; stroke:var(--gold); stroke-width:5; stroke-linecap:round; stroke-dasharray:163; stroke-dashoffset:41; }
+.ring-text{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+.ring-pct{ font-size:17px; font-weight:700; color:var(--gold); display:block; line-height:1; }
+.ring-lbl{ font-size:8px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.prog-info{ flex:1; }
+.prog-title{ font-size:15px; font-weight:600; }
+.prog-sub{ font-size:12px; color:var(--muted); margin-top:4px; font-weight:300; }
+.prog-bars{ margin-top:10px; display:flex; gap:4px; }
+.pbar{ height:3px; border-radius:10px; background:var(--border); flex:1; }
+.pbar.done{ background:var(--gold); }
+
+/* med cards */
+.meds-list{ padding:12px 22px 0; display:flex; flex-direction:column; gap:10px; }
+.med-card{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:15px 17px; display:flex; align-items:center; gap:13px; transition:.2s; }
+.med-card.done{ opacity:.5; }
+.med-card.urgent{ border-color:#c8a96e33; background:linear-gradient(135deg,#1a1a1a,#1a160e); }
+.med-icon{ width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+.med-icon.blue{ background:#4a9eff15; }
+.med-icon.green{ background:#4ade8015; }
+.med-icon.gold{ background:#c8a96e15; }
+.med-name{ font-size:15px; font-weight:600; }
+.med-dose{ font-size:12px; color:var(--muted); margin-top:2px; font-weight:300; }
+.time-badge{ font-family:'Josefin Sans',sans-serif; font-weight:200; font-size:11px; color:var(--muted); letter-spacing:1px; background:var(--surface2); padding:3px 8px; border-radius:6px; border:1px solid var(--border); }
+.time-badge.urg{ color:var(--gold); border-color:#c8a96e33; background:#c8a96e0f; }
+.check-btn{ width:30px; height:30px; border-radius:50%; border:1.5px solid var(--border); background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; transition:.2s; flex-shrink:0; }
+.check-btn.checked{ background:var(--green); border-color:var(--green); }
+
+/* next reminder */
+.next-rem{ margin:14px 22px 0; background:linear-gradient(135deg,#1a160e,#161610); border:1px solid #c8a96e33; border-radius:16px; padding:13px 17px; display:flex; align-items:center; gap:12px; }
+.next-lbl{ font-size:10px; color:var(--gold-dim); font-family:'Josefin Sans',sans-serif; letter-spacing:2px; text-transform:uppercase; }
+.next-txt{ font-size:14px; color:var(--text); margin-top:2px; }
+.next-time{ font-family:'Josefin Sans',sans-serif; font-weight:200; font-size:17px; color:var(--gold); letter-spacing:1px; }
+
+.section-head{ padding:20px 22px 0; display:flex; justify-content:space-between; align-items:center; }
+.section-head h2{ font-size:11px; font-weight:500; color:var(--muted); letter-spacing:2px; font-family:'Josefin Sans',sans-serif; text-transform:uppercase; }
+.section-head a{ font-size:11px; color:var(--gold); text-decoration:none; font-family:'Josefin Sans',sans-serif; cursor:pointer; }
+
+.add-fab{ position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--gold); color:#000; border:none; border-radius:50px; padding:13px 26px; font-family:'Tajawal',sans-serif; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:7px; box-shadow:0 8px 28px #c8a96e40; transition:.2s; z-index:10; }
+.add-fab:active{ transform:translateX(-50%) scale(.96); }
+
+/* ══════════════════════════════════════════════
+   ADD MEDICINE
+══════════════════════════════════════════════ */
+.input-wrap{ position:relative; }
+.input-icon{ position:absolute; top:50%; right:16px; transform:translateY(-50%); font-size:20px; pointer-events:none; }
+input[type="text"]{ width:100%; padding:16px 50px 16px 16px; background:var(--surface); border:1.5px solid var(--border); border-radius:16px; color:var(--text); font-family:'Tajawal',sans-serif; font-size:16px; font-weight:500; outline:none; transition:border-color .2s; direction:rtl; }
+input[type="text"]:focus{ border-color:var(--gold); }
+input[type="text"]::placeholder{ color:var(--muted); font-weight:300; }
+input[type="text"].error{ border-color:var(--red); }
+
+.times-grid{ display:flex; flex-direction:column; gap:10px; }
+.time-card{ background:var(--surface); border:1.5px solid var(--border); border-radius:18px; overflow:hidden; transition:border-color .22s; }
+.time-card.selected{ border-color:var(--gold); }
+.card-top{ padding:15px 18px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:background .2s; }
+.time-card.selected .card-top{ background:color-mix(in srgb,var(--gold) 7%,var(--surface)); }
+.t-icon{ font-size:26px; width:48px; height:48px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--surface2); border:1px solid var(--border); transition:.22s; }
+.time-card.selected .t-icon{ background:color-mix(in srgb,var(--gold) 15%,transparent); border-color:color-mix(in srgb,var(--gold) 35%,transparent); }
+.t-name{ font-size:15px; font-weight:600; }
+.t-range{ font-size:11px; color:var(--muted); margin-top:2px; font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.time-card.selected .t-range{ color:var(--gold); }
+.chk{ width:27px; height:27px; border-radius:50%; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; color:transparent; transition:.22s; }
+.time-card.selected .chk{ background:var(--gold); border-color:var(--gold); color:#000; }
+.card-bottom{ max-height:0; overflow:hidden; transition:max-height .3s ease; border-top:0px solid var(--border); background:var(--surface2); display:flex; align-items:center; justify-content:center; }
+.time-card.selected .card-bottom{ max-height:80px; border-top:1px solid var(--border); }
+.picker-wrap{ display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 0; width:100%; }
+.picker-col select{ appearance:none; -webkit-appearance:none; background:transparent; border:none; outline:none; color:var(--gold); font-family:'Josefin Sans',sans-serif; font-size:22px; font-weight:300; letter-spacing:2px; text-align:center; cursor:pointer; height:44px; width:70px; direction:ltr; }
+.picker-sep{ font-family:'Josefin Sans',sans-serif; font-size:22px; font-weight:200; color:var(--gold); margin-bottom:16px; }
+.picker-sublabel{ font-size:10px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+.hint{ margin:12px 22px 0; font-size:12px; color:var(--muted); font-weight:300; display:flex; align-items:center; gap:6px; }
+.save-wrap{ padding:24px 22px 0; }
+.save-btn{ width:100%; padding:17px; border-radius:16px; border:none; background:var(--gold); color:#000; font-family:'Tajawal',sans-serif; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 28px #c8a96e28; transition:.2s; }
+.save-btn:active{ transform:scale(.97); }
+
+/* ══════════════════════════════════════════════
+   STATS
+══════════════════════════════════════════════ */
+.period-tabs{ margin:18px 22px 0; display:flex; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:5px; }
+.period-tab{ flex:1; padding:9px; border-radius:10px; text-align:center; font-size:13px; font-weight:500; color:var(--muted); cursor:pointer; transition:.2s; }
+.period-tab.active{ background:var(--gold); color:#000; font-weight:700; }
+.score-card{ margin:14px 22px 0; background:var(--surface); border:1px solid var(--border); border-radius:22px; padding:22px; display:flex; align-items:center; gap:18px; position:relative; overflow:hidden; }
+.score-card::before{ content:''; position:absolute; top:-30px; left:-30px; width:160px; height:160px; background:radial-gradient(circle,#c8a96e12,transparent 70%); border-radius:50%; }
+.donut-wrap{ position:relative; flex-shrink:0; }
+.donut-wrap svg{ transform:rotate(-90deg); }
+.donut-bg{ fill:none; stroke:#272727; stroke-width:7; }
+.donut-fill{ fill:none; stroke:var(--gold); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset 1.2s ease; }
+.donut-center{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+.donut-pct{ font-size:20px; font-weight:700; color:var(--gold); line-height:1; }
+.donut-lbl2{ font-size:8px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.score-title{ font-size:16px; font-weight:700; }
+.score-sub{ font-size:12px; color:var(--muted); font-weight:300; margin-top:4px; line-height:1.5; }
+.score-badge{ display:inline-block; margin-top:8px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; background:color-mix(in srgb,var(--green) 15%,transparent); color:var(--green); border:1px solid color-mix(in srgb,var(--green) 30%,transparent); }
+.mini-row{ margin:10px 22px 0; display:flex; gap:10px; }
+.mini-card{ flex:1; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:13px 10px; text-align:center; }
+.mini-icon{ font-size:18px; margin-bottom:5px; }
+.mini-val{ font-size:18px; font-weight:700; }
+.mini-lbl{ font-size:10px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; margin-top:2px; }
+.week-chart{ display:flex; align-items:flex-end; justify-content:space-between; gap:6px; height:90px; }
+.day-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.day-bar-wrap{ flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center; }
+.day-bar{ width:100%; border-radius:5px 5px 0 0; min-height:4px; }
+.day-bar.full{ background:var(--gold); }
+.day-bar.partial{ background:var(--gold-dim); opacity:.7; }
+.day-bar.empty{ background:var(--border); }
+.day-bar.today{ background:var(--green); }
+.day-name{ font-size:10px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:.5px; }
+.today-lbl{ color:var(--green) !important; }
+.streak-card{ background:linear-gradient(135deg,#1a160e,#161610); border:1px solid #c8a96e33; border-radius:18px; padding:17px 20px; display:flex; align-items:center; gap:16px; }
+.streak-fire{ font-size:36px; }
+.streak-num{ font-size:26px; font-weight:700; color:var(--gold); line-height:1; }
+.streak-lbl{ font-size:12px; color:var(--muted); margin-top:3px; font-weight:300; }
+.streak-best{ font-size:11px; color:var(--gold-dim); margin-top:5px; font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.med-stat{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:15px 17px; margin-bottom:10px; }
+.med-stat-top{ display:flex; align-items:center; gap:12px; margin-bottom:11px; }
+.med-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.med-stat-name{ font-size:14px; font-weight:600; flex:1; }
+.med-stat-pct{ font-size:14px; font-weight:700; }
+.prog-track{ height:5px; background:var(--border); border-radius:10px; overflow:hidden; }
+.prog-fill{ height:100%; border-radius:10px; }
+.med-stat-row{ display:flex; justify-content:space-between; margin-top:10px; }
+.med-mini-val{ font-size:13px; font-weight:600; text-align:center; }
+.med-mini-lbl{ font-size:10px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; text-align:center; }
+
+/* ══════════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════════ */
+.settings-group{ margin:18px 22px 0; background:var(--surface); border:1px solid var(--border); border-radius:18px; overflow:hidden; }
+.settings-row{ display:flex; align-items:center; gap:14px; padding:16px 18px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .2s; }
+.settings-row:last-child{ border-bottom:none; }
+.settings-row:active{ background:var(--surface2); }
+.set-icon{ font-size:20px; width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--surface2); border:1px solid var(--border); }
+.set-info{ flex:1; }
+.set-name{ font-size:14px; font-weight:600; }
+.set-sub{ font-size:11px; color:var(--muted); margin-top:2px; font-weight:300; }
+.set-arrow{ font-size:14px; color:var(--muted); }
+.set-val{ font-size:12px; color:var(--gold); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.toggle{ width:46px; height:26px; border-radius:13px; background:var(--border); border:none; cursor:pointer; position:relative; transition:background .25s; flex-shrink:0; }
+.toggle.on{ background:var(--gold); }
+.toggle::after{ content:''; position:absolute; width:20px; height:20px; border-radius:50%; background:#fff; top:3px; right:3px; transition:right .25s; }
+.toggle.on::after{ right:calc(100% - 23px); }
+.gender-chips{ display:flex; gap:8px; margin:14px 22px 0; }
+.gender-chip{ flex:1; padding:12px 8px; border-radius:14px; background:var(--surface); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:.2s; font-size:14px; font-weight:600; color:var(--muted); }
+.gender-chip.active-m{ border-color:var(--blue); background:color-mix(in srgb,var(--blue) 10%,var(--surface)); color:var(--blue); }
+.gender-chip.active-f{ border-color:#f4a261; background:color-mix(in srgb,#f4a261 10%,var(--surface)); color:#f4a261; }
+.app-ver{ text-align:center; padding:24px 0 8px; font-size:11px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:2px; }
+
+/* ══════════════════════════════════════════════
+   PERSONALITY
+══════════════════════════════════════════════ */
+.gender-wrap{ margin:16px 22px 0; }
+.gender-label{ font-size:10px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:3px; text-transform:uppercase; margin-bottom:10px; }
+.gender-row{ display:flex; gap:10px; }
+.gender-btn{ flex:1; padding:12px 8px; border-radius:14px; background:var(--surface); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:.22s; font-size:14px; font-weight:600; color:var(--muted); }
+.gender-btn .gicon{ font-size:22px; }
+.gender-btn.male-active{ border-color:var(--blue); background:color-mix(in srgb,var(--blue) 10%,var(--surface)); color:var(--blue); }
+.gender-btn.female-active{ border-color:#f4a261; background:color-mix(in srgb,#f4a261 10%,var(--surface)); color:#f4a261; }
+.preview-wrap{ margin:14px 22px 0; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:15px 17px; display:flex; align-items:flex-start; gap:14px; position:relative; overflow:hidden; min-height:100px; transition:.3s; }
+.preview-wrap::before{ content:''; position:absolute; inset:0; opacity:.09; transition:background .3s; pointer-events:none; }
+.preview-avatar{ font-size:44px; line-height:1; flex-shrink:0; animation:avatarPop .4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes avatarPop{ from{transform:scale(.4) rotate(-15deg);opacity:0} to{transform:scale(1) rotate(0);opacity:1} }
+.preview-name{ font-size:12px; font-weight:700; margin-bottom:7px; }
+.bubble2{ background:var(--surface2); border-radius:4px 16px 16px 16px; padding:11px 13px; font-size:14px; line-height:1.65; border:1px solid var(--border); position:relative; }
+.bubble2::before{ content:''; position:absolute; top:-1px; right:-8px; width:0; height:0; border-top:8px solid var(--border); border-right:8px solid transparent; }
+.bubble2::after{ content:''; position:absolute; top:0; right:-6px; width:0; height:0; border-top:7px solid var(--surface2); border-right:7px solid transparent; }
+.notif-hint{ display:flex; align-items:center; gap:6px; margin-top:9px; font-size:11px; color:var(--muted); font-family:'Josefin Sans',sans-serif; letter-spacing:1px; }
+.p-cards{ padding:12px 22px 0; display:flex; flex-direction:column; gap:10px; }
+.p-card{ background:var(--surface); border:1.5px solid var(--border); border-radius:20px; padding:14px 16px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:.22s; position:relative; overflow:hidden; }
+.p-card:active{ transform:scale(.98); }
+.p-card.selected{ border-color:var(--card-color); background:color-mix(in srgb,var(--card-color) 8%,var(--surface)); }
+.p-card.selected::after{ content:''; position:absolute; inset:0; border-radius:20px; box-shadow:inset 0 0 0 1.5px var(--card-color); pointer-events:none; }
+.p-emoji2{ font-size:32px; width:52px; height:52px; border-radius:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:color-mix(in srgb,var(--card-color) 12%,transparent); border:1px solid color-mix(in srgb,var(--card-color) 25%,transparent); transition:.25s; }
+.p-card.selected .p-emoji2{ transform:scale(1.1) rotate(-5deg); }
+.p-name2{ font-size:15px; font-weight:700; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.p-badge{ font-size:9px; font-family:'Josefin Sans',sans-serif; letter-spacing:2px; padding:2px 8px; border-radius:20px; font-weight:300; background:color-mix(in srgb,var(--card-color) 18%,transparent); color:var(--card-color); border:1px solid color-mix(in srgb,var(--card-color) 35%,transparent); }
+.p-sample{ font-size:12px; color:var(--muted); margin-top:4px; font-weight:300; line-height:1.45; }
+.p-check{ width:26px; height:26px; border-radius:50%; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; color:transparent; transition:.22s; }
+.p-card.selected .p-check{ background:var(--card-color); border-color:var(--card-color); color:#000; }
+.c1{ --card-color:#f4a261; } .c2{ --card-color:#4a9eff; } .c3{ --card-color:#a78bfa; } .c4{ --card-color:#c8a96e; }
+.pv1{ --pv-color:#f4a261; } .pv2{ --pv-color:#4a9eff; } .pv3{ --pv-color:#a78bfa; } .pv4{ --pv-color:#c8a96e; }
+.pv1::before{ background:radial-gradient(circle at top left,#f4a261,transparent 70%); }
+.pv2::before{ background:radial-gradient(circle at top left,#4a9eff,transparent 70%); }
+.pv3::before{ background:radial-gradient(circle at top left,#a78bfa,transparent 70%); }
+.pv4::before{ background:radial-gradient(circle at top left,#c8a96e,transparent 70%); }
+.pv1 .preview-name{ color:#f4a261; } .pv2 .preview-name{ color:#4a9eff; }
+.pv3 .preview-name{ color:#a78bfa; } .pv4 .preview-name{ color:#c8a96e; }
+.confirm-wrap{ padding:22px 22px 0; }
+.confirm-btn{ width:100%; padding:16px; border-radius:16px; border:none; background:var(--gold); color:#000; font-family:'Tajawal',sans-serif; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 28px #c8a96e28; transition:.2s; }
+.confirm-btn:active{ transform:scale(.97); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ SPLASH ══ -->
+<div class="screen" id="splash">
+  <canvas id="splashCanvas" height="200"></canvas>
+  <div class="splash-logo">
+    <div class="splash-title">💊 <span class="gold">دوائي</span></div>
+    <div class="splash-sub">تذكيرات أدويتك اليومية</div>
+  </div>
+  <div class="splash-dots">
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+  </div>
+</div>
+
+<!-- ══ HOME ══ -->
+<div class="screen" id="home">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div class="header" style="justify-content:space-between;">
+    <div>
+      <div class="greeting">صباح الخير 👋</div>
+      <div class="app-name-home">💊 <span>دوائي</span></div>
+    </div>
+    <div class="notif-btn">🔔<div class="notif-dot"></div></div>
+  </div>
+  <div class="profiles">
+    <div class="profile-tab active" onclick="pickProfile(this)"><div class="p-emoji">👤</div><div class="p-name">أنا</div></div>
+    <div class="profile-tab" onclick="pickProfile(this)"><div class="p-emoji">👴</div><div class="p-name">والدي</div></div>
+    <div class="profile-tab" onclick="pickProfile(this)"><div class="p-emoji">👵</div><div class="p-name">والدتي</div></div>
+    <div class="profile-tab" onclick="pickProfile(this)"><div class="p-emoji">➕</div><div class="p-name">إضافة</div></div>
+  </div>
+  <div class="scroll">
+    <div class="progress-card">
+      <div class="ring-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle class="ring-bg" cx="32" cy="32" r="26"/>
+          <circle class="ring-fill" cx="32" cy="32" r="26"/>
+        </svg>
+        <div class="ring-text"><span class="ring-pct">75%</span><span class="ring-lbl">اليوم</span></div>
+      </div>
+      <div class="prog-info">
+        <div class="prog-title">٣ من ٤ جرعات ✅</div>
+        <div class="prog-sub">باقي جرعة الساعة ٩ م</div>
+        <div class="prog-bars">
+          <div class="pbar done"></div><div class="pbar done"></div>
+          <div class="pbar done"></div><div class="pbar"></div>
+        </div>
+      </div>
+    </div>
+    <div class="next-rem">
+      <span style="font-size:20px">⏰</span>
+      <div style="flex:1"><div class="next-lbl">التذكير القادم</div><div class="next-txt">أوميجا 3 — بالليل</div></div>
+      <div class="next-time">9:00</div>
+    </div>
+    <div class="section-head"><h2>أدوية اليوم</h2><a onclick="goTo('add')">+ إضافة ←</a></div>
+    <div class="meds-list">
+      <div class="med-card done">
+        <div class="med-icon blue">💊</div>
+        <div style="flex:1"><div class="med-name">ميتفورمين</div><div class="med-dose">مع الإفطار</div></div>
+        <span class="time-badge">8:00 ص</span>
+        <button class="check-btn checked" onclick="toggleCheck(this)">✓</button>
+      </div>
+      <div class="med-card done">
+        <div class="med-icon green">🌿</div>
+        <div style="flex:1"><div class="med-name">فيتامين د</div><div class="med-dose">صباحاً</div></div>
+        <span class="time-badge">9:00 ص</span>
+        <button class="check-btn checked" onclick="toggleCheck(this)">✓</button>
+      </div>
+      <div class="med-card done">
+        <div class="med-icon gold">💛</div>
+        <div style="flex:1"><div class="med-name">أسبرين</div><div class="med-dose">مع الغداء</div></div>
+        <span class="time-badge">2:00 م</span>
+        <button class="check-btn checked" onclick="toggleCheck(this)">✓</button>
+      </div>
+      <div class="med-card urgent">
+        <div class="med-icon" style="background:#f8717115">🔴</div>
+        <div style="flex:1"><div class="med-name">أوميجا 3</div><div class="med-dose">بالليل</div></div>
+        <span class="time-badge urg">9:00 م</span>
+        <button class="check-btn" onclick="toggleCheck(this)">○</button>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+  <button class="add-fab" onclick="goTo('add')">＋ إضافة دواء</button>
+</div>
+
+<!-- ══ ADD MEDICINE ══ -->
+<div class="screen" id="add">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div class="header">
+    <div class="back-btn" onclick="goBack()">←</div>
+    <div><div class="header-title">إضافة دواء</div><div class="header-sub">اكتب الاسم واختار المواعيد</div></div>
+  </div>
+  <div class="scroll">
+    <div class="section">
+      <div class="section-label">اسم الدواء</div>
+      <div class="input-wrap">
+        <span class="input-icon">💊</span>
+        <input type="text" id="medName" placeholder="مثال: باراسيتامول">
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">مواعيد التذكير</div>
+      <div class="times-grid" id="timesGrid"></div>
+    </div>
+    <div class="hint">🔁 التذكير هيتكرر كل يوم تلقائياً</div>
+    <div class="save-wrap">
+      <button class="save-btn" onclick="saveMed()"><span>💊</span> إضافة الدواء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STATS ══ -->
+<div class="screen" id="stats">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div class="header"><div><div class="header-title">الإحصائيات 📊</div><div class="header-sub">إزاي ماشي مع دواك؟</div></div></div>
+  <div class="scroll">
+    <div class="period-tabs">
+      <div class="period-tab" onclick="setPeriod(this)">اليوم</div>
+      <div class="period-tab active" onclick="setPeriod(this)">الأسبوع</div>
+      <div class="period-tab" onclick="setPeriod(this)">الشهر</div>
+    </div>
+    <div class="score-card">
+      <div class="donut-wrap">
+        <svg width="86" height="86" viewBox="0 0 86 86">
+          <circle class="donut-bg" cx="43" cy="43" r="34"/>
+          <circle class="donut-fill" id="donutFill" cx="43" cy="43" r="34" stroke-dasharray="214" stroke-dashoffset="54"/>
+        </svg>
+        <div class="donut-center"><div class="donut-pct" id="mainPct">75%</div><div class="donut-lbl2">انتظام</div></div>
+      </div>
+      <div style="flex:1">
+        <div class="score-title" id="scoreTitle">أداء كويس! 👍</div>
+        <div class="score-sub" id="scoreSub">خدت 21 جرعة من 28 الأسبوع ده</div>
+        <div class="score-badge" id="scoreBadge">🔥 على الطريق</div>
+      </div>
+    </div>
+    <div class="mini-row">
+      <div class="mini-card"><div class="mini-icon">✅</div><div class="mini-val" style="color:var(--green)" id="st1">21</div><div class="mini-lbl">اتخدت</div></div>
+      <div class="mini-card"><div class="mini-icon">❌</div><div class="mini-val" style="color:var(--red)" id="st2">7</div><div class="mini-lbl">اتفاتت</div></div>
+      <div class="mini-card"><div class="mini-icon">💊</div><div class="mini-val" style="color:var(--gold)" id="st3">28</div><div class="mini-lbl">المجموع</div></div>
+    </div>
+    <div class="section">
+      <div class="section-label">الأسبوع ده</div>
+      <div class="week-chart" id="weekChart"></div>
+    </div>
+    <div class="section">
+      <div class="section-label">أيام متتالية</div>
+      <div class="streak-card"><div class="streak-fire">🔥</div><div><div class="streak-num">5</div><div class="streak-lbl">يوم متتالي بتاخد دواك</div><div class="streak-best">أحسن سلسلة: 12 يوم</div></div></div>
+    </div>
+    <div class="section">
+      <div class="section-label">كل دواء لوحده</div>
+      <div class="med-stat"><div class="med-stat-top"><div class="med-dot" style="background:#4a9eff"></div><div class="med-stat-name">ميتفورمين</div><div class="med-stat-pct" style="color:#4a9eff">90%</div></div><div class="prog-track"><div class="prog-fill" style="width:90%;background:#4a9eff"></div></div><div class="med-stat-row"><div><div class="med-mini-val" style="color:var(--green)">9</div><div class="med-mini-lbl">اتخد</div></div><div><div class="med-mini-val" style="color:var(--red)">1</div><div class="med-mini-lbl">فات</div></div><div><div class="med-mini-val" style="color:var(--gold)">10</div><div class="med-mini-lbl">المجموع</div></div></div></div>
+      <div class="med-stat"><div class="med-stat-top"><div class="med-dot" style="background:#4ade80"></div><div class="med-stat-name">فيتامين د</div><div class="med-stat-pct" style="color:#4ade80">70%</div></div><div class="prog-track"><div class="prog-fill" style="width:70%;background:#4ade80"></div></div><div class="med-stat-row"><div><div class="med-mini-val" style="color:var(--green)">7</div><div class="med-mini-lbl">اتخد</div></div><div><div class="med-mini-val" style="color:var(--red)">3</div><div class="med-mini-lbl">فات</div></div><div><div class="med-mini-val" style="color:var(--gold)">10</div><div class="med-mini-lbl">المجموع</div></div></div></div>
+      <div class="med-stat"><div class="med-stat-top"><div class="med-dot" style="background:#f4a261"></div><div class="med-stat-name">أوميجا 3</div><div class="med-stat-pct" style="color:#f4a261">60%</div></div><div class="prog-track"><div class="prog-fill" style="width:60%;background:#f4a261"></div></div><div class="med-stat-row"><div><div class="med-mini-val" style="color:var(--green)">6</div><div class="med-mini-lbl">اتخد</div></div><div><div class="med-mini-val" style="color:var(--red)">4</div><div class="med-mini-lbl">فات</div></div><div><div class="med-mini-val" style="color:var(--gold)">10</div><div class="med-mini-lbl">المجموع</div></div></div></div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="screen" id="settings">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div class="header"><div><div class="header-title">الإعدادات ⚙️</div><div class="header-sub">خصّص التطبيق براحتك</div></div></div>
+  <div class="scroll">
+    <div class="section"><div class="section-label">أنت مين؟</div></div>
+    <div class="gender-chips">
+      <div class="gender-chip active-m" id="gM" onclick="setGenderChip('m')"><span style="font-size:22px">🧔</span> راجل</div>
+      <div class="gender-chip" id="gF" onclick="setGenderChip('f')"><span style="font-size:22px">👩</span> ست</div>
+    </div>
+    <div class="settings-group" style="margin-top:18px">
+      <div class="settings-row" onclick="goTo('personality')">
+        <div class="set-icon">🎭</div>
+        <div class="set-info"><div class="set-name">شخصية التذكير</div><div class="set-sub">خالتي أطاطا هتفكرك</div></div>
+        <span class="set-arrow">←</span>
+      </div>
+      <div class="settings-row">
+        <div class="set-icon">🔔</div>
+        <div class="set-info"><div class="set-name">الإشعارات</div><div class="set-sub">رنة تنبيه مع كل موعد</div></div>
+        <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="settings-row">
+        <div class="set-icon">🔁</div>
+        <div class="set-info"><div class="set-name">تذكير تاني</div><div class="set-sub">لو نسيت تأكد بعد 15 دقيقة</div></div>
+        <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-row">
+        <div class="set-icon">👥</div>
+        <div class="set-info"><div class="set-name">البروفايلات</div><div class="set-sub">أنا / والدي / والدتي</div></div>
+        <span class="set-val">3 ←</span>
+      </div>
+      <div class="settings-row">
+        <div class="set-icon">💾</div>
+        <div class="set-info"><div class="set-name">نسخ احتياطي</div><div class="set-sub">احفظ بياناتك</div></div>
+        <span class="set-arrow">←</span>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-row">
+        <div class="set-icon">⭐</div>
+        <div class="set-info"><div class="set-name">قيّم التطبيق</div><div class="set-sub">رأيك يساعدنا نتحسن</div></div>
+        <span class="set-arrow">←</span>
+      </div>
+      <div class="settings-row">
+        <div class="set-icon">📤</div>
+        <div class="set-info"><div class="set-name">شارك التطبيق</div><div class="set-sub">فكّر حد قريبك بدوائه</div></div>
+        <span class="set-arrow">←</span>
+      </div>
+    </div>
+    <div class="app-ver">دوائي · v1.0 · by Shaboury</div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ══ PERSONALITY ══ -->
+<div class="screen" id="personality">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div class="header">
+    <div class="back-btn" onclick="goBack()">←</div>
+    <div><div class="header-title">شخصية التذكير</div><div class="header-sub">مين هيفكّرك بدواك؟ 😄</div></div>
+  </div>
+  <div class="scroll">
+    <div class="gender-wrap">
+      <div class="gender-label">أنت مين؟</div>
+      <div class="gender-row">
+        <div class="gender-btn male-active" id="pBtnM" onclick="setPGender('m')"><span class="gicon">🧔</span> راجل</div>
+        <div class="gender-btn" id="pBtnF" onclick="setPGender('f')"><span class="gicon">👩</span> ست</div>
+      </div>
+    </div>
+    <div class="preview-wrap pv1" id="pvWrap">
+      <div class="preview-avatar" id="pvAvatar">👵</div>
+      <div style="flex:1">
+        <div class="preview-name" id="pvName">خالتي أطاطا</div>
+        <div class="bubble2" id="pvMsg">ما تنساش الدوا يا أستاذ</div>
+        <div class="notif-hint">🔔 إشعار على شاشتك مع رنة تنبيه</div>
+      </div>
+    </div>
+    <div class="section"><div class="section-label">اختار شخصيتك</div></div>
+    <div class="p-cards">
+      <div class="p-card c1 selected" data-pid="1" onclick="pickPersonality(this)">
+        <div class="p-emoji2">👵</div>
+        <div style="flex:1"><div class="p-name2">خالتي أطاطا <span class="p-badge">الأكثر شعبية</span></div><div class="p-sample" id="ps1">"ما تنساش الدوا يا أستاذ"</div></div>
+        <div class="p-check">✓</div>
+      </div>
+      <div class="p-card c2" data-pid="2" onclick="pickPersonality(this)">
+        <div class="p-emoji2">👨‍⚕️</div>
+        <div style="flex:1"><div class="p-name2">دكتور رسمي</div><div class="p-sample" id="ps2">"ما تنساش الدوا يا أستاذ"</div></div>
+        <div class="p-check">✓</div>
+      </div>
+      <div class="p-card c3" data-pid="3" onclick="pickPersonality(this)">
+        <div class="p-emoji2">😂</div>
+        <div style="flex:1"><div class="p-name2">صاحبك الانتيم <span class="p-badge">جديد</span></div><div class="p-sample" id="ps3">"ما تنساش الدوا يا أستاذ"</div></div>
+        <div class="p-check">✓</div>
+      </div>
+      <div class="p-card c4" data-pid="4" onclick="pickPersonality(this)">
+        <div class="p-emoji2">🤲</div>
+        <div style="flex:1"><div class="p-name2">روحاني</div><div class="p-sample" id="ps4">"ما تنساش الدوا يا أستاذ"</div></div>
+        <div class="p-check">✓</div>
+      </div>
+    </div>
+    <div class="confirm-wrap">
+      <button class="confirm-btn" onclick="savePersonality()"><span>💾</span> حفظ الشخصية</button>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-home" onclick="navTo('home')"><span class="nav-icon">🏠</span><span class="nav-label">اليوم</span></div>
+  <div class="nav-item" id="nav-stats" onclick="navTo('stats')"><span class="nav-icon">📊</span><span class="nav-label">إحصائيات</span></div>
+  <div class="nav-item" id="nav-add" onclick="navTo('add')"><span class="nav-icon">➕</span><span class="nav-label">إضافة</span></div>
+  <div class="nav-item" id="nav-settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span class="nav-label">إعدادات</span></div>
+</div>
+
+<!-- SIGNATURE -->
+<div class="signature">
+  <div class="sig-bar"></div>
+  <div style="display:flex;flex-direction:column;gap:1px;">
+    <span class="sig-by">by</span>
+    <span class="sig-nm">Shaboury</span>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ NAVIGATION ══════════════════════════════════════════
+const mainScreens = ['home','stats','add','settings'];
+let history = ['home'];
+
+function showScreen(id, push=true) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active','behind');
+  });
+  const target = document.getElementById(id);
+  if (target) target.classList.add('active');
+  if (push && history[history.length-1] !== id) history.push(id);
+  // nav highlight
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + id);
+  if (navEl) navEl.classList.add('active');
+}
+
+function goTo(id) { showScreen(id); }
+function goBack() {
+  if (history.length > 1) { history.pop(); showScreen(history[history.length-1], false); }
+}
+function navTo(id) { history = [id]; showScreen(id, false); }
+
+// ══ SPLASH ══════════════════════════════════════════════
+const canvas = document.getElementById('splashCanvas');
+const ctx    = canvas.getContext('2d');
+function resizeCanvas() { canvas.width = Math.min(window.innerWidth, 420); }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const W = () => canvas.width;
+const SH = 200, GY = 165;
+let t = 0, ladyX = W() + 100;
+const SPEED = 2.4;
+const pills = [
+  {off:85,dy:0,angle:0,spin:.13},
+  {off:140,dy:-6,angle:1,spin:.10},
+  {off:190,dy:5,angle:2.2,spin:.15},
+];
+
+function drawPill(cx,cy,angle){
+  const pw=38,ph=18,r=ph/2;
+  ctx.save(); ctx.translate(cx,cy);
+  ctx.save(); ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(0,r+5,18,5,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(-pw/2+r,-r); ctx.arcTo(pw/2,-r,pw/2,r,r); ctx.arcTo(pw/2,r,-pw/2,r,r); ctx.arcTo(-pw/2,r,-pw/2,-r,r); ctx.arcTo(-pw/2,-r,pw/2,-r,r); ctx.closePath();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle='#e63946'; ctx.fillRect(-pw/2,-r,pw/2,ph);
+  ctx.fillStyle='#f8f8f8'; ctx.fillRect(0,-r,pw/2,ph);
+  ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.ellipse(-pw/4,-r/2,pw/6,r/3,-.3,0,Math.PI*2); ctx.fill();
+  ctx.restore(); ctx.strokeStyle='#c0202f'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-pw/2+r,-r); ctx.arcTo(pw/2,-r,pw/2,r,r); ctx.arcTo(pw/2,r,-pw/2,r,r); ctx.arcTo(-pw/2,r,-pw/2,-r,r); ctx.arcTo(-pw/2,-r,pw/2,-r,r); ctx.closePath(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSpeedLines(x,y){
+  ctx.save();
+  [[40,-10],[28,0],[18,9]].forEach(([len,dy])=>{
+    const g=ctx.createLinearGradient(x+32,y+dy,x+32+len,y+dy);
+    g.addColorStop(0,'#ff444488'); g.addColorStop(1,'transparent');
+    ctx.strokeStyle=g; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x+32,y+dy); ctx.lineTo(x+32+len,y+dy); ctx.stroke();
+  }); ctx.restore();
+}
+
+function drawLeg(cx,oy,angle,color,shoeCol){
+  const a=angle*Math.PI/180;
+  ctx.save(); ctx.translate(cx,oy);
+  ctx.save(); ctx.rotate(a*.55); ctx.fillStyle=color; ctx.beginPath(); ctx.roundRect(-5,0,10,30,4); ctx.fill();
+  ctx.translate(0,30); ctx.rotate(a*.45); ctx.beginPath(); ctx.roundRect(-4.5,0,9,26,4); ctx.fill();
+  ctx.fillStyle=shoeCol; ctx.beginPath(); ctx.ellipse(5,26,14,7,.15,0,Math.PI*2); ctx.fill();
+  ctx.restore(); ctx.restore();
+}
+
+function drawArm(cx,oy,angle){
+  ctx.save(); ctx.translate(cx,oy); ctx.rotate(angle*Math.PI/180);
+  ctx.fillStyle='#c0392b'; ctx.beginPath(); ctx.roundRect(-4,0,8,28,4); ctx.fill();
+  ctx.fillStyle='#f7c9a0'; ctx.beginPath(); ctx.ellipse(0,31,6,5,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawLady(x,gy,t){
+  const bob=Math.sin(t*16)*4, ls=Math.sin(t*16)*32;
+  ctx.save(); ctx.translate(x,gy+bob); ctx.scale(-1,1); ctx.rotate(-.14);
+  ctx.save(); ctx.rotate(.14); ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(0,6,26,6,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  drawLeg(ctx,5,0,ls,'#a0302a','#1a1a1a');
+  drawLeg(ctx,-5,0,-ls,'#a0302a','#1a1a1a');
+  // dress
+  ctx.fillStyle='#c0392b'; ctx.beginPath(); ctx.moveTo(-18,-58); ctx.lineTo(18,-58); ctx.lineTo(28,0); ctx.lineTo(-28,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f5e6d3'; ctx.beginPath(); ctx.moveTo(-10,-50); ctx.lineTo(10,-50); ctx.lineTo(14,0); ctx.lineTo(-14,0); ctx.closePath(); ctx.fill();
+  // arms
+  const aw=Math.sin(t*16+Math.PI)*45;
+  drawArm(ctx,12,-58,aw+10); drawArm(ctx,-12,-58,-aw-30);
+  // neck
+  ctx.fillStyle='#f5c8a0'; ctx.beginPath(); ctx.roundRect(-5,-72,10,16,4); ctx.fill();
+  // head
+  ctx.save(); ctx.translate(0,-88);
+  // hair
+  ctx.fillStyle='#d4d0cb'; ctx.beginPath(); ctx.ellipse(0,-14,20,16,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,-26,10,10,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#c8a96e'; ctx.lineWidth=2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-5,-28); ctx.lineTo(5,-22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5,-28); ctx.lineTo(-5,-22); ctx.stroke();
+  // face
+  ctx.fillStyle='#f7c9a0'; ctx.beginPath(); ctx.ellipse(0,0,22,24,0,0,Math.PI*2); ctx.fill();
+  // cheeks
+  ctx.save(); ctx.globalAlpha=.3; ctx.fillStyle='#f4a0a0';
+  ctx.beginPath(); ctx.ellipse(-13,6,8,6,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(13,6,8,6,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  // wrinkles
+  ctx.strokeStyle='#e0a87a'; ctx.lineWidth=1.2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-16,4); ctx.quadraticCurveTo(-20,8,-16,12); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16,4); ctx.quadraticCurveTo(20,8,16,12); ctx.stroke();
+  // eyes
+  const blink=(Math.sin(t*5)>.92)?2:9;
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.ellipse(-9,-4,9,blink,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(9,-4,9,blink,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#6b3a1f';
+  ctx.beginPath(); ctx.ellipse(-9,-4,5,Math.min(5,blink),0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(9,-4,5,Math.min(5,blink),0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.ellipse(-9,-4,2.5,Math.min(2.5,blink),0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(9,-4,2.5,Math.min(2.5,blink),0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.ellipse(-11,-6,2,2,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(7,-6,2,2,0,0,Math.PI*2); ctx.fill();
+  // eyebrows raised in panic
+  ctx.strokeStyle='#7a5230'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(-18,-16); ctx.quadraticCurveTo(-9,-22,0,-15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(18,-16); ctx.quadraticCurveTo(9,-22,0,-15); ctx.stroke();
+  // nose
+  ctx.fillStyle='#e8a87a'; ctx.beginPath(); ctx.ellipse(0,5,5,4,0,0,Math.PI*2); ctx.fill();
+  // mouth open - cute shocked
+  ctx.fillStyle='#c0624a'; ctx.beginPath(); ctx.ellipse(0,15,10,8,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#7a1f1f'; ctx.beginPath(); ctx.ellipse(0,16,7,5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.roundRect(-5,13,10,5,2); ctx.fill();
+  // glasses
+  ctx.strokeStyle='#8B6914'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(-20,-11,16,12,4); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(4,-11,16,12,4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-4,-6); ctx.lineTo(4,-6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-20,-6); ctx.lineTo(-24,-8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(20,-6); ctx.lineTo(24,-8); ctx.stroke();
+  ctx.restore();
+  // cane
+  ctx.save(); ctx.rotate(Math.sin(t*16)*.2);
+  ctx.strokeStyle='#8B6914'; ctx.lineWidth=3.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(16,-30); ctx.quadraticCurveTo(28,0,22,2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(26,2,4,.5,Math.PI+.5); ctx.stroke(); ctx.restore();
+  // sweat
+  const sw=(Math.sin(t*10)+1)/2;
+  ctx.save(); ctx.globalAlpha=sw*.8; ctx.fillStyle='#88ccff';
+  ctx.beginPath(); ctx.arc(-28,-95+sw*18,4,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=((Math.sin(t*10+1)+1)/2)*.8;
+  ctx.beginPath(); ctx.arc(-38,-88+((Math.sin(t*10+1)+1)/2)*14,3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
+function splashLoop(){
+  ctx.clearRect(0,0,W(),SH);
+  t+=.016; ladyX-=SPEED;
+  if(ladyX<-100) ladyX=W()+120;
+  // ground
+  const g=ctx.createLinearGradient(0,0,W(),0);
+  g.addColorStop(0,'transparent'); g.addColorStop(.1,'#2a2a2a'); g.addColorStop(.9,'#2a2a2a'); g.addColorStop(1,'transparent');
+  ctx.strokeStyle=g; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,GY); ctx.lineTo(W(),GY); ctx.stroke();
+  pills.forEach(p=>{
+    const px=ladyX+p.off, py=GY-12+p.dy;
+    if(px>-60&&px<W()+60){ p.angle+=p.spin; drawSpeedLines(px,py-2); drawPill(px,py,p.angle); }
+  });
+  drawLady(ladyX,GY,t);
+  requestAnimationFrame(splashLoop);
+}
+splashLoop();
+
+// Auto-navigate to home after 3s
+setTimeout(()=>{ document.getElementById('splash').style.transition='opacity .6s'; document.getElementById('splash').style.opacity='0'; setTimeout(()=>{ document.getElementById('splash').style.display='none'; showScreen('home',false); },600); },3000);
+
+// ══ HOME ════════════════════════════════════════════════
+function pickProfile(el){
+  document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+function toggleCheck(btn){
+  const card=btn.closest('.med-card');
+  if(btn.classList.contains('checked')){
+    btn.classList.remove('checked'); btn.textContent='○'; card.classList.remove('done');
+  } else {
+    btn.classList.add('checked'); btn.textContent='✓'; card.classList.add('done');
+  }
+}
+
+// ══ ADD MEDICINE ════════════════════════════════════════
+const timeSlots=[
+  {id:'s1',icon:'🌅',name:'الصبح', range:'6 ص — 11 ص',minH:6,maxH:10,defH:8,defM:0},
+  {id:'s2',icon:'☀️',name:'الضهر', range:'11 ص — 4 م',minH:11,maxH:15,defH:13,defM:0},
+  {id:'s3',icon:'🌆',name:'العصر', range:'4 م — 8 م', minH:16,maxH:19,defH:17,defM:0},
+  {id:'s4',icon:'🌙',name:'بالليل',range:'8 م — 12 ل',minH:20,maxH:23,defH:21,defM:0},
+];
+
+function buildHours(min,max,def){
+  let h='';
+  for(let i=min;i<=max;i++){
+    const l=i>12?(i-12)+' م':(i===12?'12 م':i+' ص');
+    h+=`<option value="${i}"${i===def?' selected':''}>${l}</option>`;
+  }
+  return h;
+}
+function buildMins(def){
+  let h='';
+  for(let m=0;m<60;m+=5){
+    h+=`<option value="${m}"${m===def?' selected':''}>${m.toString().padStart(2,'0')}</option>`;
+  }
+  return h;
+}
+
+const tGrid=document.getElementById('timesGrid');
+timeSlots.forEach(s=>{
+  const d=document.createElement('div');
+  d.className='time-card'; d.id=s.id;
+  d.innerHTML=`
+    <div class="card-top" onclick="toggleSlot('${s.id}')">
+      <div class="t-icon">${s.icon}</div>
+      <div style="flex:1"><div class="t-name">${s.name}</div><div class="t-range" id="r${s.id}">${s.range}</div></div>
+      <div class="chk">✓</div>
+    </div>
+    <div class="card-bottom">
+      <div class="picker-wrap">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <select class="hour-sel" onchange="updateSlotLabel('${s.id}')">${buildHours(s.minH,s.maxH,s.defH)}</select>
+          <div class="picker-sublabel">ساعة</div>
+        </div>
+        <div class="picker-sep">:</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <select class="min-sel" onchange="updateSlotLabel('${s.id}')">${buildMins(s.defM)}</select>
+          <div class="picker-sublabel">دقيقة</div>
+        </div>
+      </div>
+    </div>`;
+  tGrid.appendChild(d);
+});
+
+function toggleSlot(id){ document.getElementById(id).classList.toggle('selected'); }
+function updateSlotLabel(id){
+  const c=document.getElementById(id);
+  const h=parseInt(c.querySelector('.hour-sel').value);
+  const m=parseInt(c.querySelector('.min-sel').value);
+  const hd=h>12?(h-12):(h===0?12:h);
+  const p=h>=12?'م':'ص';
+  document.getElementById('r'+id).textContent=hd+':'+m.toString().padStart(2,'0')+' '+p;
+}
+
+function saveMed(){
+  const name=document.getElementById('medName').value.trim();
+  const sel=document.querySelectorAll('#add .time-card.selected');
+  if(!name){ const i=document.getElementById('medName'); i.classList.add('error'); i.focus(); setTimeout(()=>i.classList.remove('error'),1500); return; }
+  if(!sel.length){ document.querySelectorAll('#add .time-card').forEach(c=>{c.style.borderColor='#f87171';setTimeout(()=>c.style.borderColor='',1500);}); return; }
+  showToast('✅ تم إضافة '+name+' لجدولك!');
+  setTimeout(()=>{ document.getElementById('medName').value=''; document.querySelectorAll('#add .time-card').forEach(c=>c.classList.remove('selected')); navTo('home'); },1500);
+}
+
+// ══ STATS ═══════════════════════════════════════════════
+const wDays=[
+  {name:'سبت',pct:100,type:'full'},{name:'أحد',pct:75,type:'partial'},
+  {name:'إثن',pct:100,type:'full'},{name:'ثلث',pct:50,type:'partial'},
+  {name:'أرب',pct:100,type:'full'},{name:'خمس',pct:0,type:'empty'},
+  {name:'جمعة',pct:80,type:'today'},
+];
+const wChart=document.getElementById('weekChart');
+wDays.forEach((d,i)=>{
+  const col=document.createElement('div'); col.className='day-col';
+  col.innerHTML=`<div class="day-bar-wrap"><div class="day-bar ${d.type}" style="height:${Math.max(d.pct,4)}%"></div></div><div class="day-name${i===6?' today-lbl':''}">${d.name}</div>`;
+  wChart.appendChild(col);
+});
+const periodData={
+  'اليوم': {pct:75,title:'كويس! ٣ من ٤ 👍',sub:'خدت 3 جرعات من 4 النهارده',badge:'🔥 على الطريق',t:3,m:1,tot:4},
+  'الأسبوع':{pct:75,title:'أداء كويس! 👍',sub:'خدت 21 جرعة من 28 الأسبوع ده',badge:'🔥 على الطريق',t:21,m:7,tot:28},
+  'الشهر': {pct:82,title:'ممتاز! 🌟',sub:'خدت 90 جرعة من 110 الشهر ده',badge:'⭐ منتظم جداً',t:90,m:20,tot:110},
+};
+function setPeriod(el){
+  document.querySelectorAll('.period-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active');
+  const d=periodData[el.textContent]; if(!d)return;
+  document.getElementById('mainPct').textContent=d.pct+'%';
+  document.getElementById('scoreTitle').textContent=d.title;
+  document.getElementById('scoreSub').textContent=d.sub;
+  document.getElementById('scoreBadge').textContent=d.badge;
+  document.getElementById('st1').textContent=d.t;
+  document.getElementById('st2').textContent=d.m;
+  document.getElementById('st3').textContent=d.tot;
+  const circ=214, off=circ-(circ*d.pct/100);
+  document.getElementById('donutFill').style.strokeDashoffset=off;
+}
+
+// ══ SETTINGS ════════════════════════════════════════════
+function setGenderChip(g){
+  document.getElementById('gM').className='gender-chip'+(g==='m'?' active-m':'');
+  document.getElementById('gF').className='gender-chip'+(g==='f'?' active-f':'');
+}
+
+// ══ PERSONALITY ═════════════════════════════════════════
+const pData={
+  1:{avatar:'👵',name:'خالتي أطاطا',m:'ما تنساش الدوا يا أستاذ',f:'متنسيش الدوا يا حجة',cls:'pv1'},
+  2:{avatar:'👨‍⚕️',name:'دكتور رسمي',m:'ما تنساش الدوا يا أستاذ',f:'متنسيش الدوا يا حجة',cls:'pv2'},
+  3:{avatar:'😂',name:'صاحبك الانتيم',m:'ما تنساش الدوا يا أستاذ',f:'متنسيش الدوا يا حجة',cls:'pv3'},
+  4:{avatar:'🤲',name:'روحاني',m:'ما تنساش الدوا يا أستاذ',f:'متنسيش الدوا يا حجة',cls:'pv4'},
+};
+let curPid=1, curPGender='m';
+
+function setPGender(g){
+  curPGender=g;
+  document.getElementById('pBtnM').className='gender-btn'+(g==='m'?' male-active':'');
+  document.getElementById('pBtnF').className='gender-btn'+(g==='f'?' female-active':'');
+  updatePreview();
+}
+function pickPersonality(el){
+  document.querySelectorAll('.p-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected'); curPid=parseInt(el.dataset.pid); updatePreview();
+}
+function updatePreview(){
+  const p=pData[curPid], msg=curPGender==='m'?p.m:p.f;
+  const wrap=document.getElementById('pvWrap');
+  wrap.className='preview-wrap '+p.cls;
+  const av=document.getElementById('pvAvatar');
+  av.style.animation='none'; av.offsetHeight; av.style.animation='avatarPop .4s cubic-bezier(.34,1.56,.64,1)';
+  av.textContent=p.avatar;
+  document.getElementById('pvName').textContent=p.name;
+  document.getElementById('pvMsg').textContent=msg;
+  [1,2,3,4].forEach(i=>{ const el=document.getElementById('ps'+i); if(el){ const pp=pData[i]; el.textContent='"'+(curPGender==='m'?pp.m:pp.f)+'"'; } });
+}
+function savePersonality(){
+  showToast('✅ تم حفظ الشخصية!');
+  setTimeout(()=>goBack(),1500);
+}
+
+// ══ TOAST ═══════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// Start on splash
+showScreen('splash', false);
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
