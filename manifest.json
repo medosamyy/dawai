@@ -1,18 +1,39 @@
 {
   "name": "دوائي",
   "short_name": "دوائي",
-  "description": "تذكيرات أدويتك اليومية",
-  "start_url": "/index.html",
+  "description": "تذكيرات أدويتك اليومية - ما تنساش دواك!",
+  "start_url": "/dawai/index.html",
+  "scope": "/dawai/",
   "display": "standalone",
   "background_color": "#0d0d0d",
   "theme_color": "#c8a96e",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "lang": "ar",
   "dir": "rtl",
+  "id": "/dawai/",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
-  "screenshots": [],
-  "categories": ["health", "medical", "lifestyle"]
+  "screenshots": [
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "دوائي - الشاشة الرئيسية"
+    }
+  ],
+  "categories": ["health", "medical", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "إضافة دواء",
+      "short_name": "إضافة",
+      "description": "أضف دواء جديد",
+      "url": "/dawai/index.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }
